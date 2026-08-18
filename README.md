@@ -4,7 +4,12 @@
 [![license](https://img.shields.io/npm/l/agent-codemode)](./LICENSE)
 [![node](https://img.shields.io/node/v/agent-codemode)](https://nodejs.org)
 
-**Code mode for the coding agent you already run.**
+**Code mode for the coding agent you already run — 40 tool calls in, 1 script out.**
+
+A real task, measured: reading 39 Linear tickets and counting a word across them
+costs **262,159 characters over 40 sequential round trips** as tool calls, or
+**903 characters over one** as a script. [Same answer, 290× less
+context](#what-it-costs), and far faster.
 
 Cloudflare's code mode gives an agent an entire API in ~1,000 tokens — but you
 still have to build the agent, and bring an API key for everything it touches.
@@ -112,6 +117,36 @@ reads three servers, prints the digest, and only posts to Slack behind `--post`:
 ```bash
 npx tsx examples/standup.ts
 ```
+
+## What it costs
+
+One real prompt — *fetch every In Progress Linear ticket with its full body and
+count how many times "mcp" appears* — measured both ways against a live
+workspace of 39 tickets:
+
+![the same task, both ways](./docs/cost.gif)
+
+| | into the model | round trips |
+| --- | --- | --- |
+| as tool calls | 262,159 chars (~65,500 tokens) | 40, in sequence |
+| as one script | 903 chars (~226 tokens) | 1 |
+
+**290× less into context, 99.66% saved** — and that is the floor, because in a
+tool-call loop those 262,159 characters are re-read on every subsequent turn,
+while the script pays once.
+
+The round-trip column is the one you feel. Forty sequential calls each wait for
+a model to decide what to ask next; the script makes the same forty requests
+without stopping to think between them, so it finishes in the time the tool-call
+version spends on its first few.
+
+And the answer is exact. Counting occurrences across 262,159 characters by
+reading them is something a model does approximately — the tool-call path would
+spend the 65,500 tokens and still be liable to return a wrong number.
+
+Character counts are exact; token figures use the rough four-characters-per-token
+heuristic. Your own numbers will differ with your data — the ratio is the durable
+part.
 
 ## Teaching your agent to use it
 
