@@ -122,23 +122,36 @@ npx tsx examples/standup.ts
 | Needs a model | yes | yes | yes | **no** |
 | Needs a deploy | yes | no | no | **no** |
 | Several servers in one script | — | — | — | **yes** |
-| Best for | agents you build | agents you build | agents you build | **cron, CI, glue** |
+| Best for | agents you build | agents you build | agents you build | **your coding agent, scripting MCP in shell / JS / TS** |
 
 They give code mode to an agent you are building. This gives it to the agent
-already on your laptop — and then lets you cut the agent out entirely.
+already on your laptop.
 
-That is also the answer to the reasonable objection that code mode on top of
-MCP on top of code mode is a useless extra layer. This is not a layer. It is the
-model *leaving*. A cron job that moves three tickets does not need reasoning; it
-needs the token, and the token is already there.
+The first user is the coding agent itself. Ask it to reconcile two trackers
+today and it does twenty tool calls, paying for every intermediate result twice
+— once into the model, once back out — and burning context on data it only
+needed in order to hand to the next call. Give it this and it writes one script:
+a loop, a filter, a join, and one answer read back at the end. That is code mode
+in the plain sense. The model writes code, the code calls the tools.
+
+The script it leaves behind is the second win, and the one that compounds. It is
+a file. It runs again tomorrow from cron, or as a CI gate, with no model and no
+tokens at all — which is also the answer to the reasonable objection that code
+mode on top of MCP on top of code mode is a useless extra layer. This is not a
+layer. It is the model *leaving*. A job that moves three tickets does not need
+reasoning; it needs the token, and the token is already there.
 
 ## Why
 
 An MCP server is a JSON-RPC endpoint. `claude mcp` can add, list and log in to
 servers — it cannot *call* them. So the OAuth dance is already done and the
-result sits unused. A script can talk to those servers directly, which is what
-you want for cron jobs, CI gates and glue code, where paying a model to relay a
-request is both slow and expensive.
+result sits unused, reachable only by a model deciding to reach for it, one tool
+call at a time.
+
+A script can talk to those servers directly. That is what you want any time
+paying a model to relay a request is slow and expensive: while the agent works,
+because a written script beats twenty round trips, and after it stops, because
+the script keeps running from cron or CI on its own.
 
 ## What works
 
