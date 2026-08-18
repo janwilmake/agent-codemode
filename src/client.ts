@@ -61,13 +61,21 @@ export class McpClient {
     return new McpClient(cred.serverUrl, cred.accessToken, protocolVersion);
   }
 
+  /** Build a client for a raw URL, with an optional token. Use for endpoints
+   *  Claude Code does not hold a credential for — e.g. connectors, whose
+   *  tools/list is served unauthenticated. */
+  static fromUrl(url: string, token = "", protocolVersion: string = DEFAULT_PROTOCOL_VERSION): McpClient {
+    return new McpClient(url, token, protocolVersion);
+  }
+
   private headers(): Record<string, string> {
     const h: Record<string, string> = {
       "Content-Type": "application/json",
       Accept: "application/json, text/event-stream",
-      Authorization: `Bearer ${this.accessToken}`,
       "MCP-Protocol-Version": this.protocolVersion,
     };
+    // Some endpoints (e.g. claude.ai connectors) serve tools/list unauthenticated.
+    if (this.accessToken) h.Authorization = `Bearer ${this.accessToken}`;
     if (this.sessionId) h["Mcp-Session-Id"] = this.sessionId;
     return h;
   }
