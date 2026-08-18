@@ -9,6 +9,8 @@
 Your coding agent has already logged into every MCP server you use. This lets it
 stop calling them one tool at a time and write a script instead.
 
+*[Why I built it, in a thread](https://x.com/janwilmake/status/2089730708713472326).*
+
 ![the same task, both ways](./docs/cost.gif)
 
 ## What it costs
@@ -223,6 +225,8 @@ runtime-and-CLI-for-MCP idea first, and does more than this does.
 
 What is left for this package is small, and it is the last mile: the credentials
 are already sitting on your machine.
+
+Discussion: [the launch thread](https://x.com/janwilmake/status/2089730708713472326).
 
 ## Why
 
