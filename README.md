@@ -33,7 +33,10 @@ to relay a request is both slow and expensive.
 npm install -g claude-codemode     # provides `claude-codemode` and `claude-mcp`
 ```
 
-Requires Node 18+ and macOS.
+Requires Node 18+. macOS is fully supported. On Linux/Windows the config-based
+servers (stdio, API-key) work as-is, and Claude's OAuth tokens are read from
+`~/.claude/.credentials.json`; the macOS Keychain path is skipped. Help
+verifying Linux/Windows is welcome — see CONTRIBUTING.md.
 
 ## What works
 
@@ -48,10 +51,18 @@ Verified end to end against a live install:
 | stdio MCP (local subprocess) | config `env` | `{ "command": "npx", … }` | ✅ works |
 | claude.ai connector | claude.ai backend | `claude.ai Gmail`, `Google Calendar` | ❌ not yet — see below |
 
-The OAuth rows read their token from the Keychain. The API-key and stdio rows
-read everything they need — a static header, or a launch command and `env` — from
-the config files (`~/.claude.json`, `.mcp.json`), where Claude Code keeps them.
-`openSession(name)` picks the right transport for each; the CLI does the same.
+The OAuth rows read their token from the credential store. The API-key and
+stdio rows read everything they need — a static header, or a launch command and
+`env` — from the config files, where the client keeps them. `openSession(name)`
+picks the right transport for each; the CLI does the same.
+
+**It reads other coding clients too.** The config files scanned aren't only
+Claude's — Cursor, Windsurf, VS Code, and Gemini CLI keep MCP servers in the
+same schema, and this reads them all (see `claude-mcp servers`, which shows the
+`client` each came from). So it inherits every client's **stdio and API-key**
+servers. OAuth inheritance is Claude-only for now — other clients' OAuth servers
+show as `unsupported` and are easy to add (CONTRIBUTING.md). Adding a client's
+config is one entry in `src/clients.ts`.
 
 **claude.ai connectors** are configured under a `claude.ai config` scope and have
 no entry in the `mcpOAuth` store; they authenticate through the account-level

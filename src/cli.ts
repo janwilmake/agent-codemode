@@ -87,7 +87,7 @@ async function main(argv: string[]): Promise<number> {
       const auth =
         s.auth === "oauth" ? `oauth:${s.tokenState ?? "?"}` : s.auth === "header" ? "api-key" : s.auth;
       process.stdout.write(
-        `${s.name.padEnd(22)} ${s.transport.padEnd(6)} ${auth.padEnd(14)} ${s.detail}\n`,
+        `${s.name.padEnd(22)} ${s.client.padEnd(9)} ${s.transport.padEnd(5)} ${auth.padEnd(16)} ${s.detail}\n`,
       );
     }
     return 0;

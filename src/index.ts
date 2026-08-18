@@ -17,6 +17,7 @@ export {
   redact,
   CredentialError,
   KEYCHAIN_SERVICE,
+  CREDENTIALS_FILE,
   type McpCredential,
 } from "./credentials.js";
 
@@ -32,6 +33,14 @@ export {
   type StdioServer,
   type HttpServer,
 } from "./config.js";
+
+export {
+  CLIENT_SOURCES,
+  home,
+  appConfigDir,
+  type ClientSource,
+  type RawServer,
+} from "./clients.js";
 
 export {
   openSession,

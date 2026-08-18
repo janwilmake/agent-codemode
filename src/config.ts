@@ -1,20 +1,18 @@
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { CLIENT_SOURCES } from "./clients.js";
 
 /**
- * Reads the MCP server definitions Claude Code keeps in its config files, as
- * opposed to the OAuth tokens it keeps in the Keychain (see credentials.ts).
+ * Classifies the MCP server definitions discovered across every coding client
+ * (see clients.ts) into a transport this package can open.
  *
- * Two kinds of server live only here, never in the Keychain:
- *   - **stdio** servers — a local subprocess, launched by `command`/`args`,
- *     with any secrets passed through `env`. No OAuth, no token to store.
+ * Two kinds of server live only in the config files, never in a Keychain:
+ *   - **stdio** servers — a local subprocess (`command`/`args`), with any
+ *     secrets in `env`. No OAuth, no token to store.
  *   - **API-key HTTP/SSE** servers — a URL plus a static `headers` map
- *     (typically `Authorization: Bearer …`). The key sits in the config, so
- *     the OAuth dance never happens and the Keychain stays empty for them.
+ *     (typically `Authorization: Bearer …`). The key sits in the config, so the
+ *     OAuth dance never happens.
  *
- * OAuth HTTP servers appear here too (as a bare url with no headers); for those
- * the token is in the Keychain and the resolver falls back to it.
+ * OAuth HTTP servers appear here too (a bare url with no headers); for those the
+ * token is in the client's credential store and the resolver looks it up there.
  */
 
 export type StdioServer = {
@@ -23,6 +21,7 @@ export type StdioServer = {
   command: string;
   args: string[];
   env: Record<string, string>;
+  client: string;
   source: string;
 };
 
@@ -31,12 +30,13 @@ export type HttpServer = {
   transport: "http" | "sse";
   url: string;
   headers: Record<string, string>;
+  client: string;
   source: string;
 };
 
 export type ServerConfig = StdioServer | HttpServer;
 
-/** Expand `${VAR}` from the environment, as Claude Code does in these fields. */
+/** Expand `${VAR}` from the environment, as the clients do in these fields. */
 function expand(value: string): string {
   return value.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_, name) => process.env[name] ?? "");
 }
@@ -49,12 +49,15 @@ function expandMap(map: Record<string, unknown> | undefined): Record<string, str
   return out;
 }
 
-function classify(name: string, raw: any, source: string): ServerConfig | undefined {
+function classify(name: string, raw: any, client: string, source: string): ServerConfig | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const type: string | undefined = typeof raw.type === "string" ? raw.type : undefined;
+  // Gemini CLI uses `httpUrl` for streamable HTTP; treat it as `url`.
+  const url: string | undefined =
+    typeof raw.url === "string" ? raw.url : typeof raw.httpUrl === "string" ? raw.httpUrl : undefined;
 
   // stdio: an explicit type, or a `command` with no url.
-  if (type === "stdio" || (!type && raw.command && !raw.url)) {
+  if (type === "stdio" || (!type && raw.command && !url)) {
     if (typeof raw.command !== "string") return undefined;
     return {
       name,
@@ -62,55 +65,45 @@ function classify(name: string, raw: any, source: string): ServerConfig | undefi
       command: raw.command,
       args: Array.isArray(raw.args) ? raw.args.map((a: unknown) => expand(String(a))) : [],
       env: expandMap(raw.env),
+      client,
       source,
     };
   }
 
-  // http / sse: an explicit type, or a bare `url`.
-  if (type === "http" || type === "sse" || (!type && raw.url)) {
-    if (typeof raw.url !== "string") return undefined;
+  // http / sse: an explicit type, or a bare url/httpUrl.
+  if (type === "http" || type === "sse" || url) {
+    if (!url) return undefined;
     return {
       name,
       transport: type === "sse" ? "sse" : "http",
-      url: expand(raw.url),
+      url: expand(url),
       headers: expandMap(raw.headers),
+      client,
       source,
     };
   }
   return undefined;
 }
 
-function readJson(path: string): any | undefined {
-  try {
-    return JSON.parse(readFileSync(path, "utf8"));
-  } catch {
-    return undefined; // missing or malformed — not this reader's problem to report
-  }
-}
-
 /**
- * Every MCP server Claude Code has configured, keyed by name. Sources are read
- * global → project → `.mcp.json`, and a later source with the same name wins —
- * the same last-wins order Claude Code applies.
+ * Every MCP server every known coding client has configured, keyed by name.
+ * Across clients the earlier one in CLIENT_SOURCES wins on a name collision;
+ * Claude is first, so it is authoritative.
  */
 export function readServerConfigs(cwd: string = process.cwd()): Map<string, ServerConfig> {
   const out = new Map<string, ServerConfig>();
-  const add = (servers: Record<string, unknown> | undefined, source: string) => {
-    for (const [name, raw] of Object.entries(servers ?? {})) {
-      const cfg = classify(name, raw, source);
+  for (const src of CLIENT_SOURCES) {
+    let raws;
+    try {
+      raws = src.collect(cwd);
+    } catch {
+      continue; // a broken client config must not sink discovery for the rest
+    }
+    for (const { name, raw, source } of raws) {
+      if (out.has(name)) continue; // earlier client wins
+      const cfg = classify(name, raw, src.client, source);
       if (cfg) out.set(name, cfg);
     }
-  };
-
-  const global = readJson(join(homedir(), ".claude.json"));
-  if (global) {
-    add(global.mcpServers, "~/.claude.json");
-    const proj = global.projects?.[cwd];
-    if (proj) add(proj.mcpServers, `~/.claude.json → projects[${cwd}]`);
   }
-
-  const dotMcp = readJson(join(cwd, ".mcp.json"));
-  if (dotMcp) add(dotMcp.mcpServers ?? dotMcp, ".mcp.json");
-
   return out;
 }

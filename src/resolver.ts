@@ -19,7 +19,14 @@ export async function openSession(name: string, opts: { cwd?: string } = {}): Pr
   if (cfg) {
     if (cfg.transport === "stdio") return StdioMcpClient.fromConfig(cfg);
     if (Object.keys(cfg.headers).length > 0) return McpClient.fromUrlWithHeaders(cfg.url, cfg.headers);
-    // http/sse with no headers → OAuth; fall through to the Keychain.
+    // http/sse with no headers → OAuth. Only Claude's tokens are readable today.
+    if (cfg.client !== "claude") {
+      throw new Error(
+        `"${name}" is an OAuth server from ${cfg.client}. Inheriting ${cfg.client}'s OAuth tokens ` +
+          `is not implemented yet — contributions welcome (see CONTRIBUTING.md). Its stdio and ` +
+          `API-key servers already work.`,
+      );
+    }
   }
   return McpClient.fromClaudeCode(name);
 }
@@ -28,12 +35,17 @@ export type AuthKind = "oauth" | "header" | "env" | "none";
 
 export interface DiscoveredServer {
   name: string;
+  /** Which coding client configured it, e.g. "claude", "cursor". */
+  client: string;
   transport: "http" | "sse" | "stdio";
   auth: AuthKind;
   /** URL for HTTP, launch command for stdio. */
   detail: string;
-  /** For OAuth servers whose token is in the Keychain. */
-  tokenState?: "live" | "expired" | "missing";
+  /**
+   * For OAuth servers: whether the token can be read. `unsupported` means the
+   * server belongs to a client whose OAuth store this package cannot read yet.
+   */
+  tokenState?: "live" | "expired" | "missing" | "unsupported";
   source: string;
 }
 
@@ -52,6 +64,7 @@ export async function listServers(cwd?: string): Promise<DiscoveredServer[]> {
     if (cfg.transport === "stdio") {
       out.set(cfg.name, {
         name: cfg.name,
+        client: cfg.client,
         transport: "stdio",
         auth: Object.keys(cfg.env).length > 0 ? "env" : "none",
         detail: [cfg.command, ...cfg.args].join(" "),
@@ -60,34 +73,40 @@ export async function listServers(cwd?: string): Promise<DiscoveredServer[]> {
     } else if (Object.keys(cfg.headers).length > 0) {
       out.set(cfg.name, {
         name: cfg.name,
+        client: cfg.client,
         transport: cfg.transport,
         auth: "header",
         detail: cfg.url,
         source: cfg.source,
       });
     } else {
+      // OAuth: only Claude's token store is readable today.
       const cred = credByName.get(cfg.name);
+      const tokenState =
+        cfg.client !== "claude" ? "unsupported" : !cred ? "missing" : isExpired(cred) ? "expired" : "live";
       out.set(cfg.name, {
         name: cfg.name,
+        client: cfg.client,
         transport: cfg.transport,
         auth: "oauth",
         detail: cfg.url,
-        tokenState: !cred ? "missing" : isExpired(cred) ? "expired" : "live",
+        tokenState,
         source: cfg.source,
       });
     }
   }
 
-  // Keychain servers that never appeared in the config files.
+  // Credential-store servers that never appeared in the config files.
   for (const cred of creds) {
     if (out.has(cred.serverName)) continue;
     out.set(cred.serverName, {
       name: cred.serverName,
+      client: "claude",
       transport: "http",
       auth: "oauth",
       detail: cred.serverUrl,
       tokenState: isExpired(cred) ? "expired" : "live",
-      source: "Keychain",
+      source: "credential store",
     });
   }
 

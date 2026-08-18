@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -74,6 +74,63 @@ const ok = (m) => {
   const servers = await listServers();
   assert.ok(servers.length > 0, "no servers discovered");
   ok(`discovery: listServers found ${servers.length} real servers`);
+}
+
+// 6. multi-client discovery + cross-platform credential file, via a fake HOME
+{
+  const origHome = process.env.HOME;
+  const fake = mkdtempSync(join(tmpdir(), "ccm-home-"));
+  const cwd = mkdtempSync(join(tmpdir(), "ccm-cwd-"));
+  mkdirSync(join(fake, ".cursor"), { recursive: true });
+  mkdirSync(join(fake, ".gemini"), { recursive: true });
+  mkdirSync(join(fake, ".claude"), { recursive: true });
+  writeFileSync(
+    join(fake, ".cursor", "mcp.json"),
+    JSON.stringify({
+      mcpServers: {
+        "cursor-echo": { command: "node", args: [fixture] },
+        "cursor-oauth": { type: "http", url: "https://c.example/mcp" },
+      },
+    }),
+  );
+  writeFileSync(
+    join(fake, ".gemini", "settings.json"),
+    JSON.stringify({ mcpServers: { "gemini-api": { httpUrl: "https://g.example/mcp", headers: { "X-Key": "k" } } } }),
+  );
+  writeFileSync(
+    join(fake, ".claude", ".credentials.json"),
+    JSON.stringify({
+      mcpOAuth: {
+        "filecred|abc": {
+          serverName: "filecred",
+          serverUrl: "https://f.example/mcp",
+          accessToken: "tok",
+          expiresAt: Date.now() + 3_600_000,
+        },
+      },
+    }),
+  );
+  process.env.HOME = fake;
+  try {
+    const cfgs = readServerConfigs(cwd);
+    assert.equal(cfgs.get("cursor-echo")?.client, "cursor");
+    assert.equal(cfgs.get("cursor-echo")?.transport, "stdio");
+    ok("multi-client: cursor stdio server discovered");
+    assert.equal(cfgs.get("gemini-api")?.client, "gemini");
+    assert.equal(cfgs.get("gemini-api")?.transport, "http"); // httpUrl → http
+    ok("multi-client: gemini httpUrl+header server discovered");
+
+    await assert.rejects(() => openSession("cursor-oauth", { cwd }), /not implemented/);
+    ok("stub: non-claude OAuth server yields a clear 'not implemented' error");
+
+    const found = await listServers(cwd);
+    const fc = found.find((s) => s.name === "filecred");
+    assert.ok(fc && fc.tokenState === "live", "credentials file not read");
+    ok("cross-platform: ~/.claude/.credentials.json credential read");
+  } finally {
+    if (origHome === undefined) delete process.env.HOME;
+    else process.env.HOME = origHome;
+  }
 }
 
 console.log(`\n${passed} checks passed`);

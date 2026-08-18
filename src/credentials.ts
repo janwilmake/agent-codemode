@@ -1,10 +1,16 @@
 import { execFile } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { promisify } from "node:util";
+import { home } from "./clients.js";
 
 const execFileAsync = promisify(execFile);
 
 /** The macOS Keychain item Claude Code writes its credentials to. */
 export const KEYCHAIN_SERVICE = "Claude Code-credentials";
+
+/** Where Claude Code writes credentials on Linux/Windows (and sometimes macOS). */
+export const CREDENTIALS_FILE = () => join(home(), ".claude", ".credentials.json");
 
 export interface McpCredential {
   /** Server name as configured in Claude Code, e.g. "linear". */
@@ -47,49 +53,15 @@ export function isExpired(cred: McpCredential, skewMs = 30_000): boolean {
   return Date.now() + skewMs >= exp;
 }
 
-async function readKeychainBlob(): Promise<unknown> {
-  if (process.platform !== "darwin") {
-    throw new CredentialError(
-      `Only macOS is supported (found ${process.platform}). Claude Code stores ` +
-        `MCP credentials in the macOS Keychain; other platforms use a different store.`,
-    );
-  }
-  let stdout: string;
-  try {
-    ({ stdout } = await execFileAsync(
-      "security",
-      ["find-generic-password", "-s", KEYCHAIN_SERVICE, "-w"],
-      { maxBuffer: 16 * 1024 * 1024 },
-    ));
-  } catch {
-    throw new CredentialError(
-      `Could not read the "${KEYCHAIN_SERVICE}" keychain item. Is Claude Code installed and signed in?`,
-    );
-  }
-  try {
-    return JSON.parse(stdout);
-  } catch {
-    throw new CredentialError(`The "${KEYCHAIN_SERVICE}" keychain item is not JSON.`);
-  }
-}
-
-/**
- * Read every MCP credential Claude Code currently holds.
- *
- * Re-read this on every call rather than caching. Claude Code refreshes tokens
- * on its own schedule, so a cached copy goes stale under you.
- */
-export async function listCredentials(): Promise<McpCredential[]> {
-  const blob = await readKeychainBlob();
+/** Pull MCP credentials out of a Claude Code credential blob (either source). */
+function parseBlob(blob: unknown): McpCredential[] {
   const mcpOAuth = (blob as Record<string, unknown>)?.mcpOAuth;
   if (!mcpOAuth || typeof mcpOAuth !== "object") return [];
-
   const out: McpCredential[] = [];
   for (const [key, raw] of Object.entries(mcpOAuth as Record<string, any>)) {
-    if (!raw?.accessToken) continue;
+    if (!raw?.accessToken || !raw.serverUrl) continue;
     // Keys look like "<serverName>|<urlHash>".
     const serverName = raw.serverName ?? key.split("|")[0];
-    if (!raw.serverUrl) continue;
     out.push({
       serverName,
       serverUrl: raw.serverUrl,
@@ -101,7 +73,48 @@ export async function listCredentials(): Promise<McpCredential[]> {
       expiresAt: typeof raw.expiresAt === "number" ? raw.expiresAt : undefined,
     });
   }
-  return out.sort((a, b) => a.serverName.localeCompare(b.serverName));
+  return out;
+}
+
+/** macOS Keychain. Empty (not thrown) off macOS or when it cannot be read. */
+async function fromKeychain(): Promise<McpCredential[]> {
+  if (process.platform !== "darwin") return [];
+  try {
+    const { stdout } = await execFileAsync(
+      "security",
+      ["find-generic-password", "-s", KEYCHAIN_SERVICE, "-w"],
+      { maxBuffer: 16 * 1024 * 1024 },
+    );
+    return parseBlob(JSON.parse(stdout));
+  } catch {
+    return []; // not signed in on this machine, or not stored in the Keychain here
+  }
+}
+
+/** Plaintext credentials file — Claude Code's store on Linux/Windows. */
+function fromCredentialsFile(): McpCredential[] {
+  try {
+    return parseBlob(JSON.parse(readFileSync(CREDENTIALS_FILE(), "utf8")));
+  } catch {
+    return []; // absent on a machine that keeps credentials in the Keychain
+  }
+}
+
+/**
+ * Read every MCP credential Claude Code currently holds, from the Keychain and
+ * the credentials file, deduplicated by server (newest token wins).
+ *
+ * Re-read this on every call rather than caching. Claude Code refreshes tokens
+ * on its own schedule, so a cached copy goes stale under you.
+ */
+export async function listCredentials(): Promise<McpCredential[]> {
+  const all = [...(await fromKeychain()), ...fromCredentialsFile()];
+  const best = new Map<string, McpCredential>();
+  for (const c of all) {
+    const cur = best.get(c.serverName);
+    if (!cur || (expiresAtMs(c) ?? 0) > (expiresAtMs(cur) ?? 0)) best.set(c.serverName, c);
+  }
+  return [...best.values()].sort((a, b) => a.serverName.localeCompare(b.serverName));
 }
 
 /** Read one server's credential, newest-wins if a name appears twice. */
