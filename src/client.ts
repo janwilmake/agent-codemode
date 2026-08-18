@@ -1,5 +1,6 @@
 import { getCredential, type McpCredential } from "./credentials.js";
 import type { McpSession } from "./session.js";
+import { CLIENT_INFO } from "./version.js";
 
 /** Protocol version we advertise. Override with MCP_PROTOCOL_VERSION. */
 export const DEFAULT_PROTOCOL_VERSION = process.env.MCP_PROTOCOL_VERSION ?? "2025-06-18";
@@ -161,7 +162,7 @@ export class McpClient implements McpSession {
     const result = await this.rpc("initialize", {
       protocolVersion: this.protocolVersion,
       capabilities: {},
-      clientInfo: { name: "agent-codemode", version: "0.1.0" },
+      clientInfo: CLIENT_INFO,
     });
     await this.rpc("notifications/initialized", {}, true);
     this.initialized = true;

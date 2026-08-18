@@ -23,6 +23,8 @@ export {
 
 export { mcp, type DynamicServer, type McpServers } from "./proxy.js";
 
+export { PACKAGE_NAME, PACKAGE_VERSION, CLIENT_INFO } from "./version.js";
+
 export { type McpSession } from "./session.js";
 
 export { StdioMcpClient } from "./stdio-client.js";

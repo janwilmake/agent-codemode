@@ -2,6 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { McpError, DEFAULT_PROTOCOL_VERSION, type ToolDefinition, type ToolResult } from "./client.js";
 import type { McpSession } from "./session.js";
 import type { StdioServer } from "./config.js";
+import { CLIENT_INFO } from "./version.js";
 
 interface JsonRpcMessage {
   jsonrpc: "2.0";
@@ -117,7 +118,7 @@ export class StdioMcpClient implements McpSession {
     const result = await this.rpc("initialize", {
       protocolVersion: this.protocolVersion,
       capabilities: {},
-      clientInfo: { name: "agent-codemode", version: "0.1.0" },
+      clientInfo: CLIENT_INFO,
     });
     await this.rpc("notifications/initialized", {}, true);
     this.initialized = true;

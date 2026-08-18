@@ -1,6 +1,6 @@
 {
   "name": "agent-codemode",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Let the scripts your coding agent writes call your MCP servers \u2014 no extra auth. Code mode for the agent you already run.",
   "keywords": [
     "codemode",
@@ -35,7 +35,8 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
