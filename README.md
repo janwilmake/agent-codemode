@@ -113,6 +113,19 @@ reads three servers, prints the digest, and only posts to Slack behind `--post`:
 npx tsx examples/standup.ts
 ```
 
+## Teaching your agent to use it
+
+This repo ships a skill at
+[`.claude/skills/agent-codemode/`](./.claude/skills/agent-codemode/SKILL.md).
+Copy it into your own project — or into `~/.claude/skills/` to have it
+everywhere — and Claude Code stops asking permission for twenty separate tool
+calls and starts writing one script instead. That is the whole point, and it
+works better when the agent knows the option exists.
+
+```bash
+mkdir -p ~/.claude/skills && cp -r .claude/skills/agent-codemode ~/.claude/skills/
+```
+
 ## How this differs from the other code modes
 
 | | Cloudflare Code Mode | TanStack AI | Code Mode SDK | **agent-codemode** |
