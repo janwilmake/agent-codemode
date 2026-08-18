@@ -1,7 +1,7 @@
 {
-  "name": "codemode",
+  "name": "agent-codemode",
   "version": "0.1.0",
-  "description": "Code mode for the coding agent you already run. Call the MCP servers Claude Code is authenticated to — from a script or from TypeScript. No API keys, no OAuth flow, no model in the loop.",
+  "description": "Code mode for the coding agent you already run. Call the MCP servers Claude Code is authenticated to \u2014 from a script or from TypeScript. No API keys, no OAuth flow, no model in the loop.",
   "keywords": [
     "codemode",
     "code-mode",
@@ -26,8 +26,8 @@
   "homepage": "https://github.com/janwilmake/agent-codemode#readme",
   "type": "module",
   "bin": {
-    "codemode": "dist/cli.js",
-    "agent-codemode": "dist/cli.js"
+    "agent-codemode": "dist/cli.js",
+    "codemode": "dist/cli.js"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
