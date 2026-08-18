@@ -162,6 +162,13 @@ const ok = (m) => {
   const longest = Math.max(...mod.source.split("\n").map((l) => l.length));
   assert.ok(longest < 400, `a generated line ran to ${longest} chars`);
   ok("codegen: no name stutter, descriptions clipped, client emitted");
+
+  // The augmentation is what removes the cast at the call site, so it has to
+  // register both the wire name and the short alias the runtime accepts.
+  assert.match(mod.source, /declare module "agent-codemode"/);
+  assert.match(mod.source, /"plugin:slack:slack": SlackClient;/);
+  assert.match(mod.source, /\n    slack: SlackClient;/);
+  ok("codegen: registers the server with mcp under both its names");
 }
 
 // The CLI must not truncate a large result when stdout is a pipe. Node's

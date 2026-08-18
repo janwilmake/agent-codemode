@@ -21,7 +21,7 @@ export {
   type McpCredential,
 } from "./credentials.js";
 
-export { mcp, type DynamicServer } from "./proxy.js";
+export { mcp, type DynamicServer, type McpServers } from "./proxy.js";
 
 export { type McpSession } from "./session.js";
 

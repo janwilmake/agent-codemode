@@ -59,19 +59,26 @@ export interface LinearClient {
 }
 ```
 
-Those types cost your agent nothing at runtime — they live in your editor, not
-in a context window. Point `mcp` at them and every call is checked:
+Each generated module also registers itself with `mcp`, so importing it is all
+it takes — there is no cast and no type argument at the call site:
 
 ```ts
+import "./mcp-types";              // side-effect import; registers every server
 import { mcp } from "agent-codemode";
-import type { LinearClient } from "./mcp-types/linear.js";
 
-const linear = mcp.linear as unknown as LinearClient;
-const issues = await linear.listIssues({ assignee: "me", state: "In Progress" });
+const issues = await mcp.linear.listIssues({ assignee: "me", state: "In Progress" });
 ```
 
-Types are optional sugar. `mcp.linear.listIssues({ … })` works with no codegen
-step at all.
+```ts
+mcp.linear.listIssues({ bogus: 1 });      // ✗ 'bogus' does not exist in LinearListIssuesArgs
+mcp.linear.listIssues({ limit: "fifty" }); // ✗ string is not assignable to number
+mcp.linear.noSuchTool({});                 // ✗ does not exist on LinearClient
+```
+
+Those types cost your agent nothing at runtime — they live in your editor, not
+in a context window. And they stay optional: without the import,
+`mcp.linear.listIssues({ … })` still runs, just with `Record<string, unknown>`
+arguments. A server you never generated types for keeps working.
 
 ## One script, three servers, zero credentials
 

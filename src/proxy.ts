@@ -55,10 +55,31 @@ function makeServerProxy(serverName: string): DynamicServer {
 }
 
 /**
+ * The registry of servers whose shape is known at compile time. Empty here on
+ * purpose — `codemode types` fills it in, by emitting a declaration merge into
+ * this interface for each server it generates:
+ *
+ *   declare module "agent-codemode" {
+ *     interface McpServers { linear: LinearClient }
+ *   }
+ *
+ * Import that generated module anywhere in your program and `mcp.linear` is
+ * typed from then on, with no cast at the call site. Servers that aren't in
+ * here still work — they fall through to the index signature below and take
+ * `Record<string, unknown>` arguments.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface McpServers {}
+
+/**
  * `mcp.<server>.<method>(args)`. Server handles are created lazily and cached,
  * so `mcp.linear` returns the same proxy each time and reuses one MCP session.
+ *
+ * A declared server wins over the index signature, so a generated type really
+ * does constrain the call — `mcp.linear.listIssues({ bogus: 1 })` is an error,
+ * not a silent pass through the untyped fallback.
  */
-export const mcp: Record<string, DynamicServer> = new Proxy(
+export const mcp: McpServers & Record<string, DynamicServer> = new Proxy(
   {},
   {
     get(target: Record<string, DynamicServer>, serverName: string) {
@@ -66,4 +87,4 @@ export const mcp: Record<string, DynamicServer> = new Proxy(
       return (target[serverName] ??= makeServerProxy(serverName));
     },
   },
-);
+) as McpServers & Record<string, DynamicServer>;
