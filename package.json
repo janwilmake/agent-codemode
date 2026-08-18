@@ -1,7 +1,7 @@
 {
   "name": "agent-codemode",
   "version": "0.1.0",
-  "description": "Code mode for the coding agent you already run. Call the MCP servers Claude Code is authenticated to \u2014 from a script or from TypeScript. No API keys, no OAuth flow, no model in the loop.",
+  "description": "Let the scripts your coding agent writes call your MCP servers \u2014 no extra auth. Code mode for the agent you already run.",
   "keywords": [
     "codemode",
     "code-mode",

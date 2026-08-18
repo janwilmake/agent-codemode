@@ -6,23 +6,54 @@
 
 **Code mode for the coding agent you already run — 40 tool calls in, 1 script out.**
 
-A real task, measured: reading 39 Linear tickets and counting a word across them
-costs **262,159 characters over 40 sequential round trips** as tool calls, or
-**903 characters over one** as a script. [Same answer, 290× less
-context](#what-it-costs), and far faster.
+Your coding agent has already logged into every MCP server you use. This lets it
+stop calling them one tool at a time and write a script instead.
 
-Cloudflare's code mode gives an agent an entire API in ~1,000 tokens — but you
-still have to build the agent, and bring an API key for everything it touches.
-Your coding agent already finished that part. Claude Code holds a live OAuth
-token for every MCP server you have ever logged into. This reads them.
+![the same task, both ways](./docs/cost.gif)
 
-```bash
-npx agent-codemode types --all      # typed TypeScript for every server you're logged into
-```
+## What it costs
 
-No API keys. No OAuth flow. No sandbox to deploy. No model in the loop.
+One real prompt — *fetch every In Progress Linear ticket with its full body and
+count how many times "mcp" appears* — measured both ways against a live
+workspace of 39 tickets:
 
-![agent-codemode in a terminal](./docs/demo.gif)
+| | into the model | round trips |
+| --- | --- | --- |
+| as tool calls | 262,159 chars (~65,500 tokens) | 40, in sequence |
+| as one script | 903 chars (~226 tokens) | 1 |
+
+**290× less into context, 99.66% saved** — and that is the floor, because in a
+tool-call loop those 262,159 characters are re-read on every subsequent turn,
+while the script pays once.
+
+The round-trip column is the one you feel. Forty sequential calls each wait for
+a model to decide what to ask next; the script makes the same forty requests
+without stopping to think between them, so it finishes in the time the tool-call
+version spends on its first few.
+
+And the answer is exact. Counting occurrences across 262,159 characters by
+reading them is something a model does approximately — the tool-call path would
+spend the 65,500 tokens and still be liable to return a wrong number.
+
+Character counts are exact; token figures use the rough four-characters-per-token
+heuristic. Your own numbers will differ with your data — the ratio is the durable
+part.
+
+### Who this is for
+
+The first user is the coding agent itself. Ask it to reconcile two trackers
+today and it does twenty tool calls, paying for every intermediate result twice
+— once into the model, once back out — and burning context on data it only
+needed in order to hand to the next call. Give it this and it writes one script:
+a loop, a filter, a join, and one answer read back at the end. That is code mode
+in the plain sense. The model writes code, the code calls the tools.
+
+The script it leaves behind is the second win, and the one that compounds. It is
+a file. It runs again tomorrow from cron, or as a CI gate, with no model and no
+tokens at all — which is also the answer to the reasonable objection that code
+mode on top of MCP on top of code mode is a useless extra layer. This is not a
+layer. It is the model *leaving*. A job that moves three tickets does not need
+reasoning; it needs the token, and the token is already there.
 
 ## Quickstart
 
@@ -34,9 +65,27 @@ npm install -g agent-codemode    # also installs a shorter `codemode` alias
 agent-codemode servers                 # who has a live token
 agent-codemode tools linear            # what can it do
 agent-codemode call linear list_issues --arg assignee=me --arg state="In Progress" --text
+agent-codemode types --all             # typed TypeScript for every server you're logged into
 ```
 
-Requires Node 18+.
+No API keys. No OAuth flow. No sandbox to deploy. No model in the loop. Requires
+Node 18+.
+
+![agent-codemode in a terminal](./docs/demo.gif)
+
+## Give it to your agent
+
+This is the main way to use it, so do this first. The repo ships a skill at
+[`.claude/skills/agent-codemode/`](./.claude/skills/agent-codemode/SKILL.md).
+Copy it into your project, or into `~/.claude/skills/` to have it everywhere:
+
+```bash
+mkdir -p ~/.claude/skills && cp -r .claude/skills/agent-codemode ~/.claude/skills/
+```
+
+An agent that knows this exists stops asking permission for twenty separate tool
+calls and writes one script instead. An agent that doesn't keeps doing what it
+knows. The skill is the difference between the two columns in the table above.
 
 ## The typed API
 
@@ -122,52 +171,9 @@ reads three servers, prints the digest, and only posts to Slack behind `--post`:
 npx tsx examples/standup.ts
 ```
 
-## What it costs
-
-One real prompt — *fetch every In Progress Linear ticket with its full body and
-count how many times "mcp" appears* — measured both ways against a live
-workspace of 39 tickets:
-
-![the same task, both ways](./docs/cost.gif)
-
-| | into the model | round trips |
-| --- | --- | --- |
-| as tool calls | 262,159 chars (~65,500 tokens) | 40, in sequence |
-| as one script | 903 chars (~226 tokens) | 1 |
-
-**290× less into context, 99.66% saved** — and that is the floor, because in a
-tool-call loop those 262,159 characters are re-read on every subsequent turn,
-while the script pays once.
-
-The round-trip column is the one you feel. Forty sequential calls each wait for
-a model to decide what to ask next; the script makes the same forty requests
-without stopping to think between them, so it finishes in the time the tool-call
-version spends on its first few.
-
-And the answer is exact. Counting occurrences across 262,159 characters by
-reading them is something a model does approximately — the tool-call path would
-spend the 65,500 tokens and still be liable to return a wrong number.
-
-Character counts are exact; token figures use the rough four-characters-per-token
-heuristic. Your own numbers will differ with your data — the ratio is the durable
-part.
-
-## Teaching your agent to use it
-
-This repo ships a skill at
-[`.claude/skills/agent-codemode/`](./.claude/skills/agent-codemode/SKILL.md).
-Copy it into your own project — or into `~/.claude/skills/` to have it
-everywhere — and Claude Code stops asking permission for twenty separate tool
-calls and starts writing one script instead. That is the whole point, and it
-works better when the agent knows the option exists.
-
-```bash
-mkdir -p ~/.claude/skills && cp -r .claude/skills/agent-codemode ~/.claude/skills/
-```
-
 ## How this differs from the other code modes
 
-| | Cloudflare Code Mode | TanStack AI | [MCPorter](https://github.com/openclaw/mcporter) | **agent-codemode** |
+| | [Cloudflare Code Mode](https://github.com/cloudflare/agents/tree/main/packages/codemode) | TanStack AI | [MCPorter](https://github.com/openclaw/mcporter) | **agent-codemode** |
 | --- | --- | --- | --- | --- |
 | Where the code runs | Worker sandbox | your app | your shell | **your shell** |
 | Needs a model | yes | yes | no | **no** |
@@ -196,19 +202,27 @@ That is a narrow difference. It is also the whole reason the script gets
 written — an agent mid-task will reach for something that works right now, and
 not for something that first needs you to go and complete an OAuth flow.
 
-The first user is the coding agent itself. Ask it to reconcile two trackers
-today and it does twenty tool calls, paying for every intermediate result twice
-— once into the model, once back out — and burning context on data it only
-needed in order to hand to the next call. Give it this and it writes one script:
-a loop, a filter, a join, and one answer read back at the end. That is code mode
-in the plain sense. The model writes code, the code calls the tools.
+## Prior art
 
-The script it leaves behind is the second win, and the one that compounds. It is
-a file. It runs again tomorrow from cron, or as a CI gate, with no model and no
-tokens at all — which is also the answer to the reasonable objection that code
-mode on top of MCP on top of code mode is a useless extra layer. This is not a
-layer. It is the model *leaving*. A job that moves three tickets does not need
-reasoning; it needs the token, and the token is already there.
+Code mode is not my idea. [Kenton Varda and Sunil Pai named
+it](https://blog.cloudflare.com/code-mode/) at Cloudflare in September 2025,
+resting the whole pattern on one observation:
+
+> LLMs are better at writing code to call MCP, than at calling MCP directly.
+
+The follow-up — [give agents an entire API in 1,000
+tokens](https://blog.cloudflare.com/code-mode-mcp/) — showed how far that goes:
+2,500 Cloudflare endpoints behind `search()` and `execute()`, at a fixed context
+cost. [Matt Carey](https://github.com/mattzcarey) builds the [Code Mode
+SDK](https://www.npmjs.com/package/@cloudflare/codemode) that packages it, and
+his `codeMcpServer` — wrap a server, get one code tool, every upstream tool a
+typed method — is the shape this codegen imitates.
+
+[MCPorter](https://github.com/openclaw/mcporter) reached the
+runtime-and-CLI-for-MCP idea first, and does more than this does.
+
+What is left for this package is small, and it is the last mile: the credentials
+are already sitting on your machine.
 
 ## Why
 
