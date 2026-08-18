@@ -85,9 +85,9 @@ Copy it into your project, or into `~/.claude/skills/` to have it everywhere:
 mkdir -p ~/.claude/skills && cp -r .claude/skills/agent-codemode ~/.claude/skills/
 ```
 
-An agent that knows this exists stops asking permission for twenty separate tool
-calls and writes one script instead. An agent that doesn't keeps doing what it
-knows. The skill is the difference between the two columns in the table above.
+An agent that knows this exists writes one script. An agent that doesn't keeps
+doing what it knows, one tool call at a time. The skill is what turns 262,159
+characters into 903.
 
 ## The typed API
 
