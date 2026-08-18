@@ -117,7 +117,7 @@ export class StdioMcpClient implements McpSession {
     const result = await this.rpc("initialize", {
       protocolVersion: this.protocolVersion,
       capabilities: {},
-      clientInfo: { name: "agent-codemode", version: "0.1.0" },
+      clientInfo: { name: "codemode", version: "0.1.0" },
     });
     await this.rpc("notifications/initialized", {}, true);
     this.initialized = true;

@@ -15,6 +15,7 @@ import type { McpSession } from "./session.js";
  * it authenticates.
  */
 export async function openSession(name: string, opts: { cwd?: string } = {}): Promise<McpSession> {
+  name = await resolveName(name, opts);
   const cfg = readServerConfigs(opts.cwd).get(name);
   if (cfg) {
     if (cfg.transport === "stdio") return StdioMcpClient.fromConfig(cfg);
@@ -29,6 +30,39 @@ export async function openSession(name: string, opts: { cwd?: string } = {}): Pr
     }
   }
   return McpClient.fromClaudeCode(name);
+}
+
+/**
+ * The short name for a server, for people who do not want to type
+ * `plugin:slack:slack`. Strips the `plugin:` marker and collapses the repeated
+ * segments plugin servers tend to have, so `plugin:slack:slack` → `slack`.
+ */
+export function shortName(name: string): string {
+  const segments = name.replace(/^plugin:/, "").split(":").filter(Boolean);
+  const deduped = segments.filter((s, i) => s.toLowerCase() !== segments[i - 1]?.toLowerCase());
+  return deduped.join(":");
+}
+
+/**
+ * Accept a short name wherever a full one is expected — `mcp.slack` for
+ * `plugin:slack:slack`. An exact name always wins, so nothing that worked
+ * before changes meaning. An ambiguous short name is an error rather than a
+ * coin flip: silently talking to the wrong server is worse than not starting.
+ */
+export async function resolveName(name: string, opts: { cwd?: string } = {}): Promise<string> {
+  const known = await listServers(opts.cwd).catch((): DiscoveredServer[] => []);
+  if (known.some((s) => s.name === name)) return name;
+
+  const matches = known.filter((s) => shortName(s.name) === name);
+  if (matches.length === 1) return matches[0].name;
+  if (matches.length > 1) {
+    throw new Error(
+      `"${name}" is ambiguous — it matches ${matches.map((m) => `"${m.name}"`).join(", ")}. Use the full name.`,
+    );
+  }
+  // Unknown to discovery, but it may still be a valid Keychain entry; let the
+  // transport produce the real error rather than guessing one here.
+  return name;
 }
 
 export type AuthKind = "oauth" | "header" | "env" | "none";
@@ -51,7 +85,7 @@ export interface DiscoveredServer {
 
 /**
  * Every server Claude Code can reach, merged from the config files and the
- * Keychain, so `claude-mcp servers` shows the full picture regardless of how
+ * Keychain, so `codemode servers` shows the full picture regardless of how
  * each one authenticates.
  */
 export async function listServers(cwd?: string): Promise<DiscoveredServer[]> {

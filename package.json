@@ -1,13 +1,33 @@
 {
-  "name": "agent-codemode",
+  "name": "codemode",
   "version": "0.1.0",
-  "description": "Call the MCP servers Claude Code is already authenticated to — from a script or from code. Adds tools/list and tools/call to what `claude mcp` can do.",
-  "keywords": ["mcp", "claude-code", "cli", "codemode", "model-context-protocol"],
+  "description": "Code mode for the coding agent you already run. Call the MCP servers Claude Code is authenticated to — from a script or from TypeScript. No API keys, no OAuth flow, no model in the loop.",
+  "keywords": [
+    "codemode",
+    "code-mode",
+    "mcp",
+    "model-context-protocol",
+    "claude-code",
+    "ai-agents",
+    "agents",
+    "cli",
+    "typescript",
+    "codegen"
+  ],
   "license": "MIT",
+  "author": "Jan Wilmake",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/janwilmake/agent-codemode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/janwilmake/agent-codemode/issues"
+  },
+  "homepage": "https://github.com/janwilmake/agent-codemode#readme",
   "type": "module",
   "bin": {
-    "agent-codemode": "dist/cli.js",
-    "claude-mcp": "dist/cli.js"
+    "codemode": "dist/cli.js",
+    "agent-codemode": "dist/cli.js"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -17,7 +37,12 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
   "engines": {
     "node": ">=18"
   },
@@ -29,6 +54,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "tsx": "^4.23.12",
     "typescript": "^5.7.0"
   }
 }

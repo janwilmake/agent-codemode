@@ -3,7 +3,14 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { StdioMcpClient, readServerConfigs, openSession, listServers } from "../dist/index.js";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import {
+  StdioMcpClient, readServerConfigs, openSession, listServers,
+  shortName, generateModule, ifaceName,
+} from "../dist/index.js";
+
+const run = promisify(execFile);
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = join(here, "echo-server.mjs");
@@ -131,6 +138,54 @@ const ok = (m) => {
     if (origHome === undefined) delete process.env.HOME;
     else process.env.HOME = origHome;
   }
+}
+
+// Short server names: plugin:slack:slack → slack.
+{
+  assert.equal(shortName("plugin:slack:slack"), "slack");
+  assert.equal(shortName("plugin:github:issues"), "github:issues");
+  assert.equal(shortName("linear"), "linear");
+  ok("shortName collapses the plugin prefix and repeated segments");
+}
+
+// Codegen naming: no stutter, and long descriptions are clipped.
+{
+  const mod = generateModule("plugin:slack:slack", [
+    { name: "slack_send_message", description: "x".repeat(4000), inputSchema: {
+      type: "object", properties: { channel_id: { type: "string", description: "y".repeat(4000) } },
+      required: ["channel_id"] } },
+  ]);
+  assert.equal(ifaceName("plugin:slack:slack"), "Slack");
+  assert.match(mod.source, /export interface SlackSendMessageArgs/);
+  assert.ok(!/SlackSlack/.test(mod.source), "interface names stutter");
+  assert.match(mod.source, /export interface SlackClient/);
+  const longest = Math.max(...mod.source.split("\n").map((l) => l.length));
+  assert.ok(longest < 400, `a generated line ran to ${longest} chars`);
+  ok("codegen: no name stutter, descriptions clipped, client emitted");
+}
+
+// The CLI must not truncate a large result when stdout is a pipe. Node's
+// stdout is async on a pipe, so process.exit() right after a big write used to
+// drop everything past the 64 KiB buffer — silently.
+{
+  const cli = join(here, "..", "dist", "cli.js");
+  const cwd = mkdtempSync(join(tmpdir(), "codemode-pipe-"));
+  writeFileSync(
+    join(cwd, ".mcp.json"),
+    JSON.stringify({
+      mcpServers: { bigecho: { command: process.execPath, args: [fixture], env: { ECHO_PAD_TOOLS: "300" } } },
+    }),
+  );
+
+  const { stdout } = await run(process.execPath, [cli, "tools", "bigecho"], {
+    cwd,
+    maxBuffer: 1 << 24,
+  });
+  assert.ok(stdout.length > 65_536, `expected a payload past the pipe buffer, got ${stdout.length}`);
+  const tools = JSON.parse(stdout); // the real assertion: it still parses
+  assert.equal(tools.length, 301);
+  assert.equal(tools[0].name, "echo");
+  ok(`CLI streams ${stdout.length} bytes through a pipe without truncating`);
 }
 
 console.log(`\n${passed} checks passed`);

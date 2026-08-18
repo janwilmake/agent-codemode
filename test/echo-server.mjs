@@ -1,6 +1,10 @@
 // A minimal stdio MCP server for tests: newline-delimited JSON-RPC on
 // stdin/stdout, one `echo` tool. Not a real integration — just enough of the
 // protocol to prove StdioMcpClient speaks it.
+//
+// ECHO_PAD_TOOLS=<n> adds n filler tools so `tools/list` exceeds the 64 KiB
+// pipe buffer, which is what the CLI's stdout drain has to survive.
+const PAD = Number(process.env.ECHO_PAD_TOOLS ?? 0);
 let buf = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (chunk) => {
@@ -53,6 +57,11 @@ function handle(msg) {
                 required: ["message"],
               },
             },
+            ...Array.from({ length: PAD }, (_, i) => ({
+              name: `filler_${i}`,
+              description: "x".repeat(400),
+              inputSchema: { type: "object", properties: {} },
+            })),
           ],
         },
       });

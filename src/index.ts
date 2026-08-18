@@ -46,12 +46,15 @@ export {
   openSession,
   listServers,
   tokenExpiry,
+  resolveName,
+  shortName,
   type DiscoveredServer,
   type AuthKind,
 } from "./resolver.js";
 
 export {
   generateModule,
+  ifaceName,
   schemaToTs,
   toCamel,
   toPascal,
