@@ -1,4 +1,5 @@
 import { getCredential, type McpCredential } from "./credentials.js";
+import type { McpSession } from "./session.js";
 
 /** Protocol version we advertise. Override with MCP_PROTOCOL_VERSION. */
 export const DEFAULT_PROTOCOL_VERSION = process.env.MCP_PROTOCOL_VERSION ?? "2025-06-18";
@@ -41,7 +42,7 @@ interface JsonRpcResponse {
  * a JSON or an SSE response body, and carries the `Mcp-Session-Id` the server
  * hands back at initialize.
  */
-export class McpClient {
+export class McpClient implements McpSession {
   private sessionId?: string;
   private nextId = 1;
   private initialized = false;
@@ -50,7 +51,14 @@ export class McpClient {
     readonly serverUrl: string,
     private readonly accessToken: string,
     readonly protocolVersion: string = DEFAULT_PROTOCOL_VERSION,
+    /** Extra headers merged in last — e.g. a static API key from the config. */
+    private readonly extraHeaders: Record<string, string> = {},
   ) {}
+
+  /** Human label for error messages (McpSession). */
+  get label(): string {
+    return this.serverUrl;
+  }
 
   /** Build a client from the token Claude Code currently holds for `serverName`. */
   static async fromClaudeCode(
@@ -68,6 +76,17 @@ export class McpClient {
     return new McpClient(url, token, protocolVersion);
   }
 
+  /** Build a client for an API-key server: a URL plus static headers
+   *  (typically `Authorization: Bearer …`) taken from the config, not the
+   *  Keychain. No OAuth token is used. */
+  static fromUrlWithHeaders(
+    url: string,
+    headers: Record<string, string>,
+    protocolVersion: string = DEFAULT_PROTOCOL_VERSION,
+  ): McpClient {
+    return new McpClient(url, "", protocolVersion, headers);
+  }
+
   private headers(): Record<string, string> {
     const h: Record<string, string> = {
       "Content-Type": "application/json",
@@ -77,8 +96,13 @@ export class McpClient {
     // Some endpoints (e.g. claude.ai connectors) serve tools/list unauthenticated.
     if (this.accessToken) h.Authorization = `Bearer ${this.accessToken}`;
     if (this.sessionId) h["Mcp-Session-Id"] = this.sessionId;
+    // Config-supplied headers win — they may carry their own Authorization.
+    Object.assign(h, this.extraHeaders);
     return h;
   }
+
+  /** Nothing to release for an HTTP session (McpSession). */
+  close(): void {}
 
   /** Pull the first JSON-RPC payload out of a JSON or SSE body. */
   private static parseBody(contentType: string, body: string): JsonRpcResponse | undefined {

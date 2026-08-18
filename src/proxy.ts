@@ -1,4 +1,6 @@
-import { McpClient, type ToolResult } from "./client.js";
+import { type ToolResult } from "./client.js";
+import { openSession } from "./resolver.js";
+import type { McpSession } from "./session.js";
 import { toCamel } from "./codegen.js";
 
 /**
@@ -19,7 +21,7 @@ export interface DynamicServer {
   [method: string]: (args?: Record<string, unknown>) => Promise<ToolResult>;
 }
 
-async function resolveWireName(client: McpClient, method: string): Promise<string> {
+async function resolveWireName(client: McpSession, method: string): Promise<string> {
   const tools = await client.listTools();
   // exact wire name, or the tool whose camelCased name matches the method
   const exact = tools.find((t) => t.name === method);
@@ -32,8 +34,8 @@ async function resolveWireName(client: McpClient, method: string): Promise<strin
 }
 
 function makeServerProxy(serverName: string): DynamicServer {
-  let clientPromise: Promise<McpClient> | undefined;
-  const client = () => (clientPromise ??= McpClient.fromClaudeCode(serverName));
+  let clientPromise: Promise<McpSession> | undefined;
+  const client = () => (clientPromise ??= openSession(serverName));
   const wireCache = new Map<string, string>();
 
   return new Proxy({} as DynamicServer, {

@@ -22,6 +22,25 @@ export {
 
 export { mcp, type DynamicServer } from "./proxy.js";
 
+export { type McpSession } from "./session.js";
+
+export { StdioMcpClient } from "./stdio-client.js";
+
+export {
+  readServerConfigs,
+  type ServerConfig,
+  type StdioServer,
+  type HttpServer,
+} from "./config.js";
+
+export {
+  openSession,
+  listServers,
+  tokenExpiry,
+  type DiscoveredServer,
+  type AuthKind,
+} from "./resolver.js";
+
 export {
   generateModule,
   schemaToTs,

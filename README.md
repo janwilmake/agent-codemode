@@ -39,32 +39,46 @@ Requires Node 18+ and macOS.
 
 Verified end to end against a live install:
 
-| Kind | Example | Status |
-| --- | --- | --- |
-| Remote HTTP MCP (OAuth) | `linear`, `axiom`, `fastmail` | ✅ works |
-| Self-hosted remote MCP | `hyre-prod`, `hyre-staging` | ✅ works |
-| Plugin MCP | `plugin:slack:slack` | ✅ works |
-| claude.ai connector | `claude.ai Gmail`, `claude.ai Google Calendar` | ❌ not yet — see below |
-| stdio MCP (local subprocess) | — | ❌ not yet |
+| Kind | Auth source | Example | Status |
+| --- | --- | --- | --- |
+| Remote HTTP MCP (OAuth) | Keychain | `linear`, `axiom`, `fastmail` | ✅ works |
+| Self-hosted remote MCP | Keychain | `hyre-prod`, `hyre-staging` | ✅ works |
+| Plugin MCP | Keychain | `plugin:slack:slack` | ✅ works |
+| API-key HTTP/SSE MCP | config `headers` | `{ "type": "http", "headers": { … } }` | ✅ works |
+| stdio MCP (local subprocess) | config `env` | `{ "command": "npx", … }` | ✅ works |
+| claude.ai connector | claude.ai backend | `claude.ai Gmail`, `Google Calendar` | ❌ not yet — see below |
+
+The OAuth rows read their token from the Keychain. The API-key and stdio rows
+read everything they need — a static header, or a launch command and `env` — from
+the config files (`~/.claude.json`, `.mcp.json`), where Claude Code keeps them.
+`openSession(name)` picks the right transport for each; the CLI does the same.
 
 **claude.ai connectors** are configured under a `claude.ai config` scope and have
 no entry in the `mcpOAuth` store; they authenticate through the account-level
-`claudeAiOauth` token instead. Supporting them means a different code path.
-
-**stdio servers** need the subprocess spawned and JSON-RPC spoken over
-stdin/stdout rather than HTTP. No auth involved — just a second transport.
+`claudeAiOauth` token, and the connector endpoint rejects any client whose name
+contains "claude". Supporting them would mean impersonating Claude Code itself —
+out of scope on purpose.
 
 ## How it works
 
-Claude Code keeps a JSON blob in the macOS Keychain under the service
-`Claude Code-credentials`. Inside it, `mcpOAuth` is keyed by
-`<serverName>|<urlHash>` and each entry carries `serverUrl`, `accessToken`,
-`refreshToken`, `clientId`, `issuer` and `expiresAt`.
+Claude Code stores what a server needs in two places, and this package reads
+both:
 
-This package reads that entry, then speaks Streamable HTTP MCP: `initialize`,
-carry the returned `Mcp-Session-Id`, `notifications/initialized`, then
-`tools/list` or `tools/call`. Responses may come back as JSON or as SSE; both
-are handled.
+- **The macOS Keychain**, service `Claude Code-credentials`. Its `mcpOAuth` map
+  is keyed `<serverName>|<urlHash>` and each entry carries `serverUrl`,
+  `accessToken`, `refreshToken`, `clientId`, `issuer` and `expiresAt`. This is
+  the OAuth HTTP servers.
+- **The config files**, `~/.claude.json` (top-level `mcpServers` and
+  per-project) and `.mcp.json`. A stdio server keeps its `command`, `args` and
+  `env` here; an API-key server keeps its `url` and static `headers` here.
+  `${VAR}` references in those fields are expanded from the environment, as
+  Claude Code does.
+
+For an HTTP server it speaks Streamable HTTP MCP — `initialize`, carry the
+returned `Mcp-Session-Id`, `notifications/initialized`, then `tools/list` or
+`tools/call`, accepting a JSON or an SSE response. For a stdio server it spawns
+the subprocess and speaks the same JSON-RPC newline-framed over stdin/stdout.
+One `McpSession` interface covers both.
 
 ## Three rules, learned the hard way
 
@@ -94,7 +108,7 @@ are handled.
 ## CLI
 
 ```
-claude-codemode servers                       list servers with a stored token
+claude-codemode servers                       list every server (config + Keychain)
 claude-codemode tools <server>                list a server's tools
 claude-codemode call <server> <tool> [args]   call a tool
 

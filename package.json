@@ -24,6 +24,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "test": "npm run build && node test/smoke.mjs",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
