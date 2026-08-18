@@ -1,12 +1,12 @@
 {
-  "name": "claude-codemode",
+  "name": "agent-codemode",
   "version": "0.1.0",
   "description": "Call the MCP servers Claude Code is already authenticated to — from a script or from code. Adds tools/list and tools/call to what `claude mcp` can do.",
   "keywords": ["mcp", "claude-code", "cli", "codemode", "model-context-protocol"],
   "license": "MIT",
   "type": "module",
   "bin": {
-    "claude-codemode": "dist/cli.js",
+    "agent-codemode": "dist/cli.js",
     "claude-mcp": "dist/cli.js"
   },
   "main": "dist/index.js",

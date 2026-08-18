@@ -1,4 +1,4 @@
-# claude-codemode
+# agent-codemode
 
 Call the MCP servers **Claude Code is already authenticated to** — from a shell
 script or from TypeScript. No API keys to create, no OAuth flow to implement, no
@@ -8,13 +8,13 @@ model in the loop.
 fills that gap:
 
 ```bash
-claude-codemode servers                 # who has a live token
-claude-codemode tools linear            # what can it do
-claude-codemode call linear list_issues --arg team="Hyre Ops" --arg state=Todo --text
+agent-codemode servers                 # who has a live token
+agent-codemode tools linear            # what can it do
+agent-codemode call linear list_issues --arg team="Hyre Ops" --arg state=Todo --text
 ```
 
 ```ts
-import { callTool, resultText } from "claude-codemode";
+import { callTool, resultText } from "agent-codemode";
 
 const result = await callTool("linear", "list_issues", { team: "Hyre Ops", state: "Todo" });
 console.log(resultText(result));
@@ -30,7 +30,7 @@ to relay a request is both slow and expensive.
 ## Install
 
 ```bash
-npm install -g claude-codemode     # provides `claude-codemode` and `claude-mcp`
+npm install -g agent-codemode     # provides `agent-codemode` and `claude-mcp`
 ```
 
 Requires Node 18+. macOS is fully supported. On Linux/Windows the config-based
@@ -119,9 +119,9 @@ One `McpSession` interface covers both.
 ## CLI
 
 ```
-claude-codemode servers                       list every server (config + Keychain)
-claude-codemode tools <server>                list a server's tools
-claude-codemode call <server> <tool> [args]   call a tool
+agent-codemode servers                       list every server (config + Keychain)
+agent-codemode tools <server>                list a server's tools
+agent-codemode call <server> <tool> [args]   call a tool
 
   --json '{"a":1}'      whole argument object as JSON
   --arg key=value       one string argument
@@ -138,7 +138,7 @@ itself reported `isError`.
 import {
   McpClient, callTool, listTools, resultText,
   listCredentials, getCredential, isExpired,
-} from "claude-codemode";
+} from "agent-codemode";
 
 // one-shot
 const tools = await listTools("linear");
