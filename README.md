@@ -85,11 +85,15 @@ in a context window. And they stay optional: without the import,
 `mcp.linear.listIssues({ … })` still runs, just with `Record<string, unknown>`
 arguments. A server you never generated types for keeps working.
 
-## One script, three servers, zero credentials
+## One script, three servers, zero setup
 
-This is the part no other code mode can do. Every server below authenticated
-itself once, through your coding agent. There is no `.env` in this example
-because there is nothing to put in it:
+Plenty of tools will call three MCP servers from one script. What none of them
+skip is the credential step: you either bring an API key, or complete an OAuth
+flow into that tool's own store, before the first call works.
+
+Every server below authenticated itself once, through your coding agent, and
+this borrows that. There is no `.env` in this example because there is nothing
+to put in it, and no login to run first:
 
 ```ts
 import { mcp } from "agent-codemode";
@@ -163,17 +167,34 @@ mkdir -p ~/.claude/skills && cp -r .claude/skills/agent-codemode ~/.claude/skill
 
 ## How this differs from the other code modes
 
-| | Cloudflare Code Mode | TanStack AI | Code Mode SDK | **agent-codemode** |
+| | Cloudflare Code Mode | TanStack AI | [MCPorter](https://github.com/openclaw/mcporter) | **agent-codemode** |
 | --- | --- | --- | --- | --- |
-| Where the code runs | Worker sandbox | your app | your app | **your shell** |
-| Auth for each tool | your API keys | your API keys | your API keys | **already done** |
-| Needs a model | yes | yes | yes | **no** |
+| Where the code runs | Worker sandbox | your app | your shell | **your shell** |
+| Needs a model | yes | yes | no | **no** |
 | Needs a deploy | yes | no | no | **no** |
-| Several servers in one script | — | — | — | **yes** |
-| Best for | agents you build | agents you build | agents you build | **your coding agent, scripting MCP in shell / JS / TS** |
+| Several servers in one script | yes | yes | yes | yes |
+| Typed clients | yes | yes | yes (`emit-ts`) | yes (`types --all`) |
+| Credentials | your API keys | your API keys | its own vault | **your agent's, inherited** |
+| Setup before the first call | deploy a Worker | wire up the SDK | `mcporter auth` per server | **none** |
 
-They give code mode to an agent you are building. This gives it to the agent
-already on your laptop.
+**Be clear about what is and isn't new here.** Multi-server scripts are not new
+— Cloudflare's sandbox takes bindings for every server it's connected to,
+[VoidMCP](https://github.com/voidmind-io/voidmcp) orchestrates several in one
+WASM runtime, and `mcp-use` and LangChain's `MultiServerMCPClient` have done it
+for a while. Typed clients are not new either. Reading other tools' MCP config
+is not new: MCPorter imports server definitions from Cursor, Claude, Codex,
+Windsurf, OpenCode and VS Code.
+
+The one thing that is different is the row second from the bottom. Every other
+tool has a credential step — bring an API key, or run its OAuth flow into its
+own store. MCPorter, the closest neighbour, reads Claude Code's server
+*definitions* but keeps its own vault at `~/.mcporter/credentials.json` and
+makes you authenticate again. This reads the token your agent already minted, so
+there is no step at all: `npm install`, then call.
+
+That is a narrow difference. It is also the whole reason the script gets
+written — an agent mid-task will reach for something that works right now, and
+not for something that first needs you to go and complete an OAuth flow.
 
 The first user is the coding agent itself. Ask it to reconcile two trackers
 today and it does twenty tool calls, paying for every intermediate result twice
