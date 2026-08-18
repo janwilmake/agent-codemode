@@ -53,7 +53,7 @@ credentials to `~/.claude/.credentials.json`, which the package already reads.
 If you run on those platforms, the most useful help is:
 
 1. Run `npm test` and report the result.
-2. Run `codemode servers` and confirm it lists your real servers with the
+2. Run `agent-codemode servers` and confirm it lists your real servers with the
    right transports.
 3. Confirm the credentials path (`CREDENTIALS_FILE()`), and open an issue if
    your client puts it elsewhere.

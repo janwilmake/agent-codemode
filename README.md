@@ -17,25 +17,25 @@ npx agent-codemode types --all      # typed TypeScript for every server you're l
 
 No API keys. No OAuth flow. No sandbox to deploy. No model in the loop.
 
-![codemode in a terminal](./docs/demo.gif)
+![agent-codemode in a terminal](./docs/demo.gif)
 
 ## Quickstart
 
 ```bash
-npm install -g agent-codemode    # gives you `agent-codemode` and the shorter `codemode`
+npm install -g agent-codemode    # also installs a shorter `codemode` alias
 ```
 
 ```bash
-codemode servers                 # who has a live token
-codemode tools linear            # what can it do
-codemode call linear list_issues --arg assignee=me --arg state="In Progress" --text
+agent-codemode servers                 # who has a live token
+agent-codemode tools linear            # what can it do
+agent-codemode call linear list_issues --arg assignee=me --arg state="In Progress" --text
 ```
 
 Requires Node 18+.
 
 ## The typed API
 
-`codemode types` reads a server's live `tools/list` and emits a `.ts` module —
+`agent-codemode types` reads a server's live `tools/list` and emits a `.ts` module —
 every tool as a method, every input schema as an interface, every description as
 JSDoc:
 
@@ -160,7 +160,7 @@ verifying Linux/Windows is welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 **It reads other coding clients too.** The config files scanned aren't only
 Claude's — Cursor, Windsurf, VS Code, and Gemini CLI keep MCP servers in the
-same schema, and this reads them all (`codemode servers` shows the `client` each
+same schema, and this reads them all (`agent-codemode servers` shows the `client` each
 came from). So it inherits every client's **stdio and API-key** servers. OAuth
 inheritance is Claude-only for now — other clients' OAuth servers show as
 `unsupported` and are easy to add. Adding a client's config is one entry in
@@ -220,12 +220,12 @@ is true whether or not you install it. See **[SECURITY.md](./SECURITY.md)**.
 ## CLI
 
 ```
-codemode servers                       list every server (config files + Keychain)
-codemode tools <server>                list a server's tools
-codemode call <server> <tool> [args]   call a tool
-codemode types <server> [--out file]   generate a .ts types module for a server
-codemode types --all [--out dir]       generate a module per authed server + index barrel
-codemode types --url <url> [--name n]  generate for a raw endpoint (unauthenticated tools/list)
+agent-codemode servers                       list every server (config files + Keychain)
+agent-codemode tools <server>                list a server's tools
+agent-codemode call <server> <tool> [args]   call a tool
+agent-codemode types <server> [--out file]   generate a .ts types module for a server
+agent-codemode types --all [--out dir]       generate a module per authed server + index barrel
+agent-codemode types --url <url> [--name n]  generate for a raw endpoint (unauthenticated tools/list)
 
   --json '{"a":1}'      whole argument object as JSON
   --arg key=value       one string argument
@@ -233,7 +233,7 @@ codemode types --url <url> [--name n]  generate for a raw endpoint (unauthentica
   --text                print only the text content of the result
 ```
 
-Server names can be shortened when unambiguous: `codemode call slack …` reaches
+Server names can be shortened when unambiguous: `agent-codemode call slack …` reaches
 `plugin:slack:slack`.
 
 Exit codes: `0` success, `1` error (credential, transport, usage), `2` the tool

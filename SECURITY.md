@@ -7,7 +7,7 @@
 - It never caches a token, on disk or in memory across calls. Every call
   re-reads the credential store, because Claude Code refreshes on its own
   schedule and a cached token goes stale silently.
-- It never prints one. `codemode servers` shows a name, a transport and an
+- It never prints one. `agent-codemode servers` shows a name, a transport and an
   expiry — never secret material.
 - An expired token raises a loud error. It never degrades into an empty result.
 
