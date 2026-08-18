@@ -1,12 +1,15 @@
 #!/usr/bin/env node
+import { writeFile } from "node:fs/promises";
 import { McpClient, resultText } from "./client.js";
 import { listCredentials, expiresAtMs, isExpired, CredentialError } from "./credentials.js";
+import { generateModule } from "./codegen.js";
 
 const USAGE = `claude-codemode — call the MCP servers Claude Code is authenticated to
 
   claude-codemode servers                       list servers with a stored token
   claude-codemode tools <server>                list a server's tools
   claude-codemode call <server> <tool> [args]   call a tool
+  claude-codemode types <server> [--out file]   generate a .ts types module for a server
 
 Arguments for "call" (combine freely; later values win):
   --json '{"a":1}'      whole argument object as JSON
@@ -94,6 +97,22 @@ async function main(argv: string[]): Promise<number> {
     if (!server) throw new Error("usage: claude-codemode tools <server>");
     const tools = await (await McpClient.fromClaudeCode(server)).listTools();
     process.stdout.write(JSON.stringify(tools, null, 2) + "\n");
+    return 0;
+  }
+
+  if (command === "types") {
+    const server = rest[0];
+    if (!server) throw new Error("usage: claude-codemode types <server> [--out file]");
+    const outIdx = rest.indexOf("--out");
+    const out = outIdx !== -1 ? rest[outIdx + 1] : undefined;
+    const tools = await (await McpClient.fromClaudeCode(server)).listTools();
+    const mod = generateModule(server, tools);
+    if (out) {
+      await writeFile(out, mod.source);
+      process.stderr.write(`wrote ${mod.methods.length} typed methods to ${out}\n`);
+    } else {
+      process.stdout.write(mod.source);
+    }
     return 0;
   }
 

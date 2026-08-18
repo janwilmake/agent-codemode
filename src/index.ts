@@ -19,3 +19,13 @@ export {
   KEYCHAIN_SERVICE,
   type McpCredential,
 } from "./credentials.js";
+
+export { mcp, type DynamicServer } from "./proxy.js";
+
+export {
+  generateModule,
+  schemaToTs,
+  toCamel,
+  toPascal,
+  type GeneratedModule,
+} from "./codegen.js";
