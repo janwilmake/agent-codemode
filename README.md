@@ -175,15 +175,15 @@ npx tsx examples/standup.ts
 
 ## How this differs from the other code modes
 
-| | [Cloudflare Code Mode](https://github.com/cloudflare/agents/tree/main/packages/codemode) | TanStack AI | [MCPorter](https://github.com/openclaw/mcporter) | **agent-codemode** |
-| --- | --- | --- | --- | --- |
-| Where the code runs | Worker sandbox | your app | your shell | **your shell** |
-| Needs a model | yes | yes | no | **no** |
-| Needs a deploy | yes | no | no | **no** |
-| Several servers in one script | yes | yes | yes | yes |
-| Typed clients | yes | yes | yes (`emit-ts`) | yes (`types --all`) |
-| Credentials | your API keys | your API keys | its own vault | **your agent's, inherited** |
-| Setup before the first call | deploy a Worker | wire up the SDK | `mcporter auth` per server | **none** |
+| | [Anthropic PTC](https://www.anthropic.com/engineering/advanced-tool-use) | [Cloudflare Code Mode](https://github.com/cloudflare/agents/tree/main/packages/codemode) | TanStack AI | [MCPorter](https://github.com/openclaw/mcporter) | **agent-codemode** |
+| --- | --- | --- | --- | --- | --- |
+| Where the code runs | Anthropic's sandbox | Worker sandbox | your app | your shell | **your shell** |
+| Needs a model | yes | yes | yes | no | **no** |
+| Needs a deploy | no | yes | no | no | **no** |
+| Several servers in one script | yes | yes | yes | yes | yes |
+| Typed clients | Python functions | yes | yes | yes (`emit-ts`) | yes (`types --all`) |
+| Credentials | your API keys | your API keys | your API keys | its own vault | **your agent's, inherited** |
+| Setup before the first call | opt each tool in, relay results | deploy a Worker | wire up the SDK | `mcporter auth` per server | **none** |
 
 **Be clear about what is and isn't new here.** Multi-server scripts are not new
 — Cloudflare's sandbox takes bindings for every server it's connected to,
@@ -219,6 +219,16 @@ cost. [Matt Carey](https://github.com/mattzcarey) builds the [Code Mode
 SDK](https://www.npmjs.com/package/@cloudflare/codemode) that packages it, and
 his `codeMcpServer` — wrap a server, get one code tool, every upstream tool a
 typed method — is the shape this codegen imitates.
+
+Anthropic ships the same pattern inside the API as [Programmatic Tool
+Calling](https://www.anthropic.com/engineering/advanced-tool-use): the model
+writes Python in a sandbox, the code calls the tools, and only the final result
+comes back into context — 37% fewer tokens on their research tasks, and a small
+accuracy gain on top, which is the "the answer is exact" argument above with
+numbers attached. It is the API-side sibling of this: for people building on
+the platform, with tools they wire up and results they relay into the sandbox
+themselves. This is the same idea for the coding agent you already run, with
+credentials it already has, and a script that outlives the session.
 
 [MCPorter](https://github.com/openclaw/mcporter) reached the
 runtime-and-CLI-for-MCP idea first, and does more than this does.
